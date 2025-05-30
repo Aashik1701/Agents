@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chatbot</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="chatbox">
+      <div class="header">
+        <h2>🤖 Friendly Chatbot</h2>
+        <p>Ask me anything!</p>
+      </div>
+      <div id="chatlog">
+        <div class="bot">Bot: Hello! I'm your friendly chatbot. How can I help you today?</div>
+      </div>
+      <div class="input-container">
+        <input type="text" id="userInput" placeholder="Type your message here..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const userText = document.getElementById("userInput").value.trim();
+      const chatlog = document.getElementById("chatlog");
+
+      if (!userText) return;
+
+      // Add user message to chat
+      chatlog.innerHTML += `<div class="user">You: ${userText}</div>`;
+      document.getElementById("userInput").value = "";
+      
+      // Auto-scroll to bottom
+      chatlog.scrollTop = chatlog.scrollHeight;
+
+      try {
+        const res = await fetch("/get", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: userText })
+        });
+
+        const data = await res.json();
+        chatlog.innerHTML += `<div class="bot">Bot: ${data.reply}</div>`;
+        
+        // Auto-scroll to bottom
+        chatlog.scrollTop = chatlog.scrollHeight;
+      } catch (error) {
+        chatlog.innerHTML += `<div class="bot error">Bot: Sorry, I'm having trouble connecting. Please try again.</div>`;
+        chatlog.scrollTop = chatlog.scrollHeight;
+      }
+    }
+
+    // Allow Enter key to send message
+    document.getElementById("userInput").addEventListener("keypress", function(event) {
+      if (event.key === "Enter") {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
