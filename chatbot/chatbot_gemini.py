@@ -15,7 +15,8 @@ def get_response(user_input):
     
     try:
         # Try direct REST API approach to bypass referrer restrictions
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={api_key}"
+        # Updated to use the current Gemini model name
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
         
         headers = {
             'Content-Type': 'application/json',
@@ -24,12 +25,14 @@ def get_response(user_input):
         data = {
             "contents": [{
                 "parts": [{
-                    "text": f"You are a helpful and friendly assistant. Keep your responses concise and helpful. User question: {user_input}"
+                    "text": f"You are a helpful, knowledgeable, and friendly AI assistant. Provide detailed, informative, and engaging responses. Be thorough in your explanations while remaining conversational and easy to understand. User question: {user_input}"
                 }]
             }],
             "generationConfig": {
                 "temperature": 0.7,
-                "maxOutputTokens": 150
+                "maxOutputTokens": 800,
+                "topP": 0.8,
+                "topK": 40
             }
         }
         
