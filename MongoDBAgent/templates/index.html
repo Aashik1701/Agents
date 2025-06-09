@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MongoDB Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 MongoBot</h1>
+            <p>Chat with our MongoDB-powered AI agent</p>
+        </div>
+        
+        <div class="chat-container">
+            <div id="chatlog" class="chat-log">
+                <div class="message bot-message">
+                    <div class="message-content">
+                        <strong>MongoBot:</strong> Hello! I'm MongoBot, your MongoDB-powered assistant. Ask me anything!
+                    </div>
+                    <div class="timestamp" id="initial-time"></div>
+                </div>
+            </div>
+            
+            <div class="input-container">
+                <input type="text" id="userInput" placeholder="Type your message here..." />
+                <button onclick="sendMessage()" id="sendBtn">Send</button>
+            </div>
+        </div>
+        
+        <div class="suggestions">
+            <h3>Try asking:</h3>
+            <div class="suggestion-buttons">
+                <button class="suggestion-btn" onclick="sendSuggestion('hello')">Hello</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('what is your name')">What's your name?</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('help')">Help</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('what is mongodb')">What is MongoDB?</button>
+                <button class="suggestion-btn" onclick="sendSuggestion('joke')">Tell me a joke</button>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by MongoDB, Flask & Python | <a href="/health" target="_blank">System Health</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Set initial timestamp
+        document.getElementById('initial-time').textContent = new Date().toLocaleTimeString();
+        
+        // Focus on input field
+        document.getElementById('userInput').focus();
+        
+        // Handle Enter key press
+        document.getElementById('userInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const userText = document.getElementById('userInput').value.trim();
+            const chatlog = document.getElementById('chatlog');
+            const sendBtn = document.getElementById('sendBtn');
+            
+            if (!userText) return;
+
+            // Disable send button temporarily
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Sending...';
+
+            // Add user message to chat
+            const userMessage = document.createElement('div');
+            userMessage.className = 'message user-message';
+            userMessage.innerHTML = `
+                <div class="message-content">
+                    <strong>You:</strong> ${escapeHtml(userText)}
+                </div>
+                <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+            `;
+            chatlog.appendChild(userMessage);
+            
+            // Clear input
+            document.getElementById('userInput').value = '';
+
+            // Scroll to bottom
+            chatlog.scrollTop = chatlog.scrollHeight;
+
+            try {
+                // Send request to backend
+                const response = await fetch('/get', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: userText })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                
+                // Add bot response to chat
+                const botMessage = document.createElement('div');
+                botMessage.className = 'message bot-message';
+                botMessage.innerHTML = `
+                    <div class="message-content">
+                        <strong>MongoBot:</strong> ${escapeHtml(data.reply)}
+                    </div>
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                `;
+                chatlog.appendChild(botMessage);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'message bot-message error';
+                errorMessage.innerHTML = `
+                    <div class="message-content">
+                        <strong>MongoBot:</strong> Sorry, I'm having trouble connecting. Please try again.
+                    </div>
+                    <div class="timestamp">${new Date().toLocaleTimeString()}</div>
+                `;
+                chatlog.appendChild(errorMessage);
+            } finally {
+                // Re-enable send button
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+                
+                // Scroll to bottom
+                chatlog.scrollTop = chatlog.scrollHeight;
+                
+                // Focus back on input
+                document.getElementById('userInput').focus();
+            }
+        }
+
+        function sendSuggestion(text) {
+            document.getElementById('userInput').value = text;
+            sendMessage();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Auto-scroll to bottom when page loads
+        window.onload = function() {
+            const chatlog = document.getElementById('chatlog');
+            chatlog.scrollTop = chatlog.scrollHeight;
+        };
+    </script>
+</body>
+</html>

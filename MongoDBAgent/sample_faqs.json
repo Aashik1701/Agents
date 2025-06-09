@@ -1,0 +1,22 @@
+[
+  {
+    "question": "hello",
+    "answer": "Hi there! I'm now connected to MongoDB Atlas and working with real-time data!"
+  },
+  {
+    "question": "what is mongodb atlas",
+    "answer": "MongoDB Atlas is a cloud-based database service that provides a fully managed MongoDB database in the cloud."
+  },
+  {
+    "question": "how does real-time work",
+    "answer": "I fetch answers directly from the MongoDB Atlas database in real-time, so any updates to the database are immediately available."
+  },
+  {
+    "question": "help",
+    "answer": "I can answer questions based on data stored in MongoDB Atlas. You can add new Q&A pairs through the /add_faq endpoint or the management script."
+  },
+  {
+    "question": "test connection",
+    "answer": "✅ Connection to MongoDB Atlas Cluster20526 is working perfectly!"
+  }
+]
