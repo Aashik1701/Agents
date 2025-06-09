@@ -1,7 +1,7 @@
 # MongoDB Atlas Configuration
 # Replace these with your actual credentials
-MONGODB_USERNAME = "Cluster20526"  # ← Replace with your Atlas username
-MONGODB_PASSWORD = "aashik1701"  # ← Replace with your Atlas password
+MONGODB_USERNAME = "aashik1701"  # ← Replace with your Atlas username
+MONGODB_PASSWORD = "Sustainabyte"  # ← Replace with your Atlas password
 MONGODB_CLUSTER = "cluster20526.g4udhpz.mongodb.net"
 MONGODB_DATABASE = "chatbotDB"
 
@@ -12,4 +12,4 @@ MONGODB_URI = f"mongodb+srv://{MONGODB_USERNAME}:{MONGODB_PASSWORD}@{MONGODB_CLU
 LOCAL_MONGODB_URI = "mongodb://localhost:27017/"
 
 # Choose connection type
-USE_ATLAS = False  # Set to True when Atlas credentials are fixed
+USE_ATLAS = True  # Will switch to True once IP is whitelisted in Atlas
