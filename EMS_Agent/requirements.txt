@@ -1,0 +1,10 @@
+Flask
+pymongo[srv]
+dnspython
+requests
+pandas
+openpyxl
+numpy
+scikit-learn
+matplotlib
+seaborn

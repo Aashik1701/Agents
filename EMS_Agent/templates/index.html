@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EMS AI Agent - Energy Management System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-bolt"></i>
+                    <h1>EMS AI Agent</h1>
+                </div>
+                <div class="system-info">
+                    <span class="status-indicator" id="statusIndicator">
+                        <i class="fas fa-circle"></i> Connecting...
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <div class="panel-section">
+                    <h3><i class="fas fa-database"></i> Data Management</h3>
+                    <button id="loadDataBtn" class="btn btn-primary">
+                        <i class="fas fa-upload"></i> Load Excel Data
+                    </button>
+                    <button id="dataSummaryBtn" class="btn btn-secondary">
+                        <i class="fas fa-chart-bar"></i> Data Summary
+                    </button>
+                </div>
+                
+                <div class="panel-section">
+                    <h3><i class="fas fa-info-circle"></i> System Status</h3>
+                    <div id="systemStats" class="stats-display">
+                        <div class="stat-item">
+                            <span class="stat-label">Database:</span>
+                            <span class="stat-value" id="dbName">EMS_Database</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Collections:</span>
+                            <span class="stat-value" id="collectionCount">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Total Records:</span>
+                            <span class="stat-value" id="recordCount">-</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Interface -->
+            <div class="chat-interface">
+                <div class="chat-header">
+                    <h2><i class="fas fa-comments"></i> Energy Data Assistant</h2>
+                    <p>Ask questions about voltage, current, power consumption, anomalies, and trends</p>
+                </div>
+
+                <!-- Sample Queries -->
+                <div class="sample-queries">
+                    <h4>Try asking:</h4>
+                    <div class="query-chips">
+                        <span class="query-chip" onclick="useQuery(this)">What is the current voltage?</span>
+                        <span class="query-chip" onclick="useQuery(this)">Show me power consumption trends</span>
+                        <span class="query-chip" onclick="useQuery(this)">Are there any voltage anomalies?</span>
+                        <span class="query-chip" onclick="useQuery(this)">What's the average power factor today?</span>
+                        <span class="query-chip" onclick="useQuery(this)">Show daily energy report</span>
+                    </div>
+                </div>
+
+                <!-- Chat Messages -->
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message assistant-message">
+                        <div class="message-content">
+                            <i class="fas fa-robot"></i>
+                            <span>Hello! I'm your EMS AI Assistant. I can help you analyze energy meter data, detect anomalies, and provide insights about power consumption. What would you like to know?</span>
+                        </div>
+                        <div class="message-time" id="welcomeTime"></div>
+                    </div>
+                </div>
+
+                <!-- Input Area -->
+                <div class="input-area">
+                    <div class="input-container">
+                        <input type="text" id="queryInput" placeholder="Ask about energy data, anomalies, or trends..." maxlength="500">
+                        <button id="sendBtn" type="button">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-content">
+                <div class="spinner"></div>
+                <p id="loadingText">Processing your request...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <script>
+        // Global variables
+        let isProcessing = false;
+        let systemStatus = null;
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            setupEventListeners();
+            updateWelcomeTime();
+        });
+
+        function initializeApp() {
+            console.log('🔋 EMS AI Agent initialized');
+            checkSystemStatus();
+            
+            // Auto-refresh status every 30 seconds
+            setInterval(checkSystemStatus, 30000);
+        }
+
+        function setupEventListeners() {
+            // Send button click
+            document.getElementById('sendBtn').addEventListener('click', handleQuery);
+            
+            // Enter key in input
+            document.getElementById('queryInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleQuery();
+                }
+            });
+
+            // Control panel buttons
+            document.getElementById('loadDataBtn').addEventListener('click', loadData);
+            document.getElementById('dataSummaryBtn').addEventListener('click', getDataSummary);
+        }
+
+        async function checkSystemStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                if (data.success !== false) {
+                    systemStatus = data;
+                    updateStatusDisplay(true);
+                    updateSystemStats(data);
+                } else {
+                    updateStatusDisplay(false);
+                }
+            } catch (error) {
+                console.error('Status check failed:', error);
+                updateStatusDisplay(false);
+            }
+        }
+
+        function updateStatusDisplay(isOnline) {
+            const indicator = document.getElementById('statusIndicator');
+            if (isOnline) {
+                indicator.innerHTML = '<i class="fas fa-circle status-online"></i> Online';
+                indicator.className = 'status-indicator online';
+            } else {
+                indicator.innerHTML = '<i class="fas fa-circle status-offline"></i> Offline';
+                indicator.className = 'status-indicator offline';
+            }
+        }
+
+        function updateSystemStats(data) {
+            if (data.database_stats) {
+                const stats = data.database_stats;
+                document.getElementById('collectionCount').textContent = stats.total_collections || '-';
+                document.getElementById('recordCount').textContent = stats.total_records || '-';
+            }
+        }
+
+        async function handleQuery() {
+            if (isProcessing) return;
+
+            const input = document.getElementById('queryInput');
+            const query = input.value.trim();
+            
+            if (!query) {
+                showToast('Please enter a question', 'warning');
+                return;
+            }
+
+            // Add user message
+            addMessage(query, 'user');
+            input.value = '';
+            
+            // Show processing state
+            setProcessingState(true);
+            
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: query })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    addMessage(data.response, 'assistant');
+                } else {
+                    addMessage(`Sorry, I encountered an error: ${data.error}`, 'assistant', true);
+                }
+                
+            } catch (error) {
+                console.error('Query failed:', error);
+                addMessage('Sorry, I had trouble processing your request. Please try again.', 'assistant', true);
+            }
+            
+            setProcessingState(false);
+        }
+
+        function addMessage(content, sender, isError = false) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            
+            messageDiv.className = `message ${sender}-message${isError ? ' error-message' : ''}`;
+            
+            const icon = sender === 'user' ? 'fas fa-user' : 'fas fa-robot';
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <i class="${icon}"></i>
+                    <span>${formatMessage(content)}</span>
+                </div>
+                <div class="message-time">${getCurrentTime()}</div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function formatMessage(message) {
+            // Basic formatting for better display
+            return message
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>');
+        }
+
+        function useQuery(element) {
+            document.getElementById('queryInput').value = element.textContent;
+        }
+
+        function setProcessingState(processing) {
+            isProcessing = processing;
+            const sendBtn = document.getElementById('sendBtn');
+            const input = document.getElementById('queryInput');
+            
+            if (processing) {
+                sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                sendBtn.disabled = true;
+                input.disabled = true;
+            } else {
+                sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i>';
+                sendBtn.disabled = false;
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function loadData() {
+            showLoading('Loading Excel data into MongoDB...');
+            
+            try {
+                const response = await fetch('/api/load_data', {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showToast('Data loaded successfully!', 'success');
+                    checkSystemStatus(); // Refresh stats
+                } else {
+                    showToast(`Data loading failed: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Data loading failed:', error);
+                showToast('Data loading failed. Check console for details.', 'error');
+            }
+            
+            hideLoading();
+        }
+
+        async function getDataSummary() {
+            showLoading('Fetching data summary...');
+            
+            try {
+                const response = await fetch('/api/data_summary');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const summary = JSON.stringify(data.summary, null, 2);
+                    addMessage(`Data Summary:\n\`\`\`json\n${summary}\n\`\`\``, 'assistant');
+                } else {
+                    showToast(`Failed to get data summary: ${data.error}`, 'error');
+                }
+                
+            } catch (error) {
+                console.error('Data summary failed:', error);
+                showToast('Failed to get data summary. Check console for details.', 'error');
+            }
+            
+            hideLoading();
+        }
+
+        function showLoading(message = 'Processing...') {
+            document.getElementById('loadingText').textContent = message;
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            
+            const icon = {
+                'success': 'fas fa-check-circle',
+                'error': 'fas fa-exclamation-circle',
+                'warning': 'fas fa-exclamation-triangle',
+                'info': 'fas fa-info-circle'
+            }[type];
+            
+            toast.innerHTML = `
+                <i class="${icon}"></i>
+                <span>${message}</span>
+            `;
+            
+            container.appendChild(toast);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    container.removeChild(toast);
+                }
+            }, 5000);
+        }
+
+        function getCurrentTime() {
+            return new Date().toLocaleTimeString();
+        }
+
+        function updateWelcomeTime() {
+            document.getElementById('welcomeTime').textContent = getCurrentTime();
+        }
+    </script>
+</body>
+</html>
