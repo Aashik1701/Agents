@@ -3,10 +3,14 @@ from pymongo import MongoClient
 from pymongo.server_api import ServerApi
 import os
 from config import MONGODB_URI, MONGODB_DATABASE, USE_ATLAS, LOCAL_MONGODB_URI
+from advanced_search import AdvancedFAQSearcher
 
 app = Flask(__name__)
 
-# MongoDB connection
+# Initialize the advanced search engine
+search_engine = AdvancedFAQSearcher()
+
+# MongoDB connection (keep for backwards compatibility)
 if USE_ATLAS:
     # MongoDB Atlas connection
     try:
@@ -25,48 +29,31 @@ else:
     print("🏠 Using local MongoDB connection")
 
 db = client[MONGODB_DATABASE]
-faqs = db.faqs
+faqs = db.faqs  # Keep for backwards compatibility
 
 def get_answer(user_input):
     """
-    Find answer for user input from MongoDB Atlas (real-time data)
+    Find answer for user input using advanced multi-collection search
+    Handles partial matches, typos, and fuzzy searching
     """
     try:
-        user_input = user_input.lower().strip()
-
-        # Method 1: Exact match (case-insensitive)
-        record = faqs.find_one({"question": {"$regex": f"^{user_input}$", "$options": "i"}})
+        # Use the advanced search engine
+        result = search_engine.search(user_input)
         
-        if record:
-            return record['answer']
+        # Add debug information for development
+        confidence = result.get('confidence', 0)
+        method = result.get('method', 'unknown')
+        collection = result.get('collection', 'none')
         
-        # Method 2: Partial match with word boundaries
-        record = faqs.find_one({"question": {"$regex": user_input, "$options": "i"}})
+        # Add confidence indicator to response if not exact match
+        answer = result['answer']
+        if confidence < 1.0 and confidence > 0.5:
+            answer = f"{answer}\n\n🎯 Confidence: {confidence:.0%} | Method: {method} | Source: {collection}"
+        elif confidence <= 0.5 and confidence > 0:
+            answer = f"🤔 {answer}\n\n💡 This is my best guess based on your question."
         
-        if record:
-            return record['answer']
+        return answer
         
-        # Method 3: Text search (if text index exists)
-        try:
-            record = faqs.find_one({"$text": {"$search": user_input}})
-            if record:
-                return record['answer']
-        except:
-            pass  # Text index might not exist
-        
-        # Method 4: Check if collection is empty
-        total_docs = faqs.count_documents({})
-        if total_docs == 0:
-            return "🔄 I'm currently learning! Please add some Q&A data to my database first."
-        
-        # Default response with helpful suggestions
-        sample_questions = list(faqs.find({}, {"question": 1, "_id": 0}).limit(3))
-        if sample_questions:
-            questions_text = ", ".join([f'"{q["question"]}"' for q in sample_questions])
-            return f"Sorry, I don't know the answer to that. Try asking: {questions_text}"
-        else:
-            return "Sorry, I don't know the answer to that. Try asking something else!"
-            
     except Exception as e:
         print(f"Error in get_answer: {e}")
         return "I'm having trouble accessing my knowledge base. Please try again."
@@ -119,17 +106,29 @@ def health():
 @app.route("/stats")
 def stats():
     """
-    Get database statistics
+    Get multi-collection database statistics
     """
     try:
-        total_faqs = faqs.count_documents({})
-        sample_questions = list(faqs.find({}, {"question": 1, "_id": 0}).limit(5))
+        # Get stats from the advanced search engine
+        search_stats = search_engine.get_stats()
+        
+        # Get sample questions from each collection
+        sample_questions = []
+        for collection_name in search_stats['collections'].keys():
+            if isinstance(search_stats['collections'][collection_name], int):
+                collection = db[collection_name]
+                samples = list(collection.find({}, {"question": 1, "_id": 0}).limit(2))
+                for sample in samples:
+                    sample_questions.append(sample["question"])
         
         return jsonify({
-            "total_faqs": total_faqs,
-            "sample_questions": [q["question"] for q in sample_questions],
+            "total_collections": search_stats["total_collections"],
+            "total_faqs": search_stats["total_questions"],
+            "collections": search_stats["collections"],
+            "sample_questions": sample_questions[:10],  # Limit to 10 samples
             "database": MONGODB_DATABASE,
-            "connection_type": "MongoDB Atlas" if USE_ATLAS else "Local MongoDB"
+            "connection_type": "MongoDB Atlas" if USE_ATLAS else "Local MongoDB",
+            "search_engine": "Advanced Multi-Collection Search with Fuzzy Matching"
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -286,6 +285,35 @@ def api_faqs():
             "connection_type": "MongoDB Atlas" if USE_ATLAS else "Local MongoDB"
         })
         
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/search_debug", methods=["POST"])
+def search_debug():
+    """
+    Debug endpoint to test search with detailed information
+    """
+    try:
+        user_input = request.json.get("message")
+        if not user_input:
+            return jsonify({"error": "Please provide a message"}), 400
+        
+        # Get detailed search result
+        result = search_engine.search(user_input)
+        
+        return jsonify({
+            "query": user_input,
+            "answer": result.get("answer"),
+            "confidence": result.get("confidence", 0),
+            "method": result.get("method"),
+            "collection": result.get("collection"),
+            "matched_question": result.get("matched_question"),
+            "additional_info": {
+                "similarity": result.get("similarity"),
+                "matched_keywords": result.get("matched_keywords"),
+                "text_score": result.get("text_score")
+            }
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
