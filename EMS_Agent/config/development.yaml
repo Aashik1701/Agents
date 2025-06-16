@@ -1,0 +1,60 @@
+# Development Configuration
+mongodb:
+  uri: "mongodb+srv://aashik1701:Sustainabyte@cluster20526.g4udhpz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster20526"
+  database: "EMS_Database"
+  max_pool_size: 10
+  min_pool_size: 5
+  timeout: 5000
+
+redis:
+  host: "localhost"
+  port: 6379
+  db: 0
+  max_connections: 10
+
+# Service-specific configuration
+data_ingestion:
+  port: 8001
+  batch_size: 1000
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout: 60
+  retry:
+    max_attempts: 3
+    backoff_factor: 2.0
+    initial_delay: 1.0
+
+analytics:
+  port: 8002
+  anomaly_threshold: 0.1
+  prediction_window: 24
+  circuit_breaker:
+    failure_threshold: 3
+    recovery_timeout: 30
+  retry:
+    max_attempts: 2
+    backoff_factor: 1.5
+    initial_delay: 0.5
+
+query_processor:
+  port: 8003
+  max_query_time: 30
+  cache_ttl: 300
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout: 45
+
+notification:
+  port: 8004
+  circuit_breaker:
+    failure_threshold: 3
+    recovery_timeout: 20
+
+gateway:
+  port: 8000
+  rate_limit: 100  # requests per minute
+  timeout: 30
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"

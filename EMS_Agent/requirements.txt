@@ -1,10 +1,40 @@
-Flask
-pymongo[srv]
-dnspython
-requests
-pandas
-openpyxl
-numpy
-scikit-learn
-matplotlib
-seaborn
+# Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+
+# Database
+pymongo[srv]>=4.6.0
+dnspython>=2.4.0
+
+# Cache and Message Queue
+redis[hiredis]>=5.0.0
+
+# Data Processing
+pandas>=2.1.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+joblib>=1.3.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Configuration
+pyyaml>=6.0.1
+
+# Logging and Monitoring
+structlog>=23.2.0
+
+# Development and Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+black>=23.9.0
+flake8>=6.1.0
+mypy>=1.6.0
+
+# Optional: For advanced features
+# celery>=5.3.0  # For background tasks
+# flower>=2.0.0  # Celery monitoring
+# sentry-sdk>=1.38.0  # Error tracking

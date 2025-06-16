@@ -1,0 +1,60 @@
+# Production Configuration
+mongodb:
+  uri: "${MONGODB_URI}"
+  database: "${MONGODB_DATABASE}"
+  max_pool_size: 50
+  min_pool_size: 10
+  timeout: 10000
+
+redis:
+  host: "${REDIS_HOST}"
+  port: "${REDIS_PORT}"
+  db: 0
+  max_connections: 50
+
+# Service-specific configuration
+data_ingestion:
+  port: 8001
+  batch_size: 5000
+  circuit_breaker:
+    failure_threshold: 10
+    recovery_timeout: 120
+  retry:
+    max_attempts: 5
+    backoff_factor: 2.0
+    initial_delay: 2.0
+
+analytics:
+  port: 8002
+  anomaly_threshold: 0.05
+  prediction_window: 48
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout: 60
+  retry:
+    max_attempts: 3
+    backoff_factor: 2.0
+    initial_delay: 1.0
+
+query_processor:
+  port: 8003
+  max_query_time: 60
+  cache_ttl: 600
+  circuit_breaker:
+    failure_threshold: 10
+    recovery_timeout: 90
+
+notification:
+  port: 8004
+  circuit_breaker:
+    failure_threshold: 5
+    recovery_timeout: 30
+
+gateway:
+  port: 8000
+  rate_limit: 1000  # requests per minute
+  timeout: 60
+
+logging:
+  level: "WARNING"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
