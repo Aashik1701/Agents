@@ -1,0 +1,75 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # EMS API Gateway
+  - job_name: 'ems-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # EMS Monitoring Service
+  - job_name: 'ems-monitoring'
+    static_configs:
+      - targets: ['monitoring:8008']
+    metrics_path: '/prometheus'
+    scrape_interval: 15s
+
+  # EMS Services
+  - job_name: 'ems-data-ingestion'
+    static_configs:
+      - targets: ['data-ingestion:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-analytics'
+    static_configs:
+      - targets: ['analytics:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-query-processor'
+    static_configs:
+      - targets: ['query-processor:8003']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-realtime-streaming'
+    static_configs:
+      - targets: ['realtime-streaming:8005']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'ems-advanced-ml'
+    static_configs:
+      - targets: ['advanced-ml:8006']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  - job_name: 'ems-security'
+    static_configs:
+      - targets: ['security:8007']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # System metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:27017']
+    scrape_interval: 30s

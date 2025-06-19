@@ -9,18 +9,24 @@ import json
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer
 import httpx
 import uvicorn
 import redis.asyncio as redis
+import websockets
 from contextlib import asynccontextmanager
+import websockets
 
 from common.base_service import LoadBalancer
 from common.config_manager import ConfigManager
 
 logger = logging.getLogger(__name__)
+
+# Security scheme
+security = HTTPBearer(auto_error=False)
 
 
 class CircuitBreakerGateway:
@@ -119,6 +125,26 @@ class APIGateway:
             },
             'notification': {
                 'default_port': 8004,
+                'health_endpoint': '/health',
+                'timeout': 10
+            },
+            'realtime_streaming': {
+                'default_port': 8005,
+                'health_endpoint': '/health',
+                'timeout': 10
+            },
+            'advanced_ml': {
+                'default_port': 8006,
+                'health_endpoint': '/health',
+                'timeout': 10
+            },
+            'security': {
+                'default_port': 8007,
+                'health_endpoint': '/health',
+                'timeout': 10
+            },
+            'monitoring': {
+                'default_port': 8008,
                 'health_endpoint': '/health',
                 'timeout': 10
             }
@@ -295,6 +321,84 @@ class APIGateway:
         async def process_query(request: Dict[str, Any]):
             return await self._proxy_request("query_processor", "POST", "/query", request)
         
+        # Real-time Streaming Service Routes
+        @app.websocket("/api/v1/realtime/stream")
+        async def realtime_stream(websocket):
+            """WebSocket endpoint for real-time data streaming"""
+            # This would proxy to the realtime streaming service
+            await self._proxy_websocket("realtime_streaming", "/stream", websocket)
+        
+        @app.post("/api/v1/realtime/sensor_data")
+        async def add_sensor_data(request: Dict[str, Any]):
+            return await self._proxy_request("realtime_streaming", "POST", "/sensor_data", request)
+        
+        @app.get("/api/v1/realtime/active_alerts")
+        async def get_active_alerts():
+            return await self._proxy_request("realtime_streaming", "GET", "/active_alerts")
+        
+        @app.post("/api/v1/realtime/alert_rules")
+        async def create_alert_rule(request: Dict[str, Any]):
+            return await self._proxy_request("realtime_streaming", "POST", "/alert_rules", request)
+        
+        # Advanced ML Service Routes
+        @app.post("/api/v1/ml/anomaly_detection")
+        async def advanced_anomaly_detection(request: Dict[str, Any]):
+            return await self._proxy_request("advanced_ml", "POST", "/anomaly_detection", request)
+        
+        @app.post("/api/v1/ml/forecast")
+        async def energy_forecast(request: Dict[str, Any]):
+            return await self._proxy_request("advanced_ml", "POST", "/forecast", request)
+        
+        @app.post("/api/v1/ml/predictive_maintenance")
+        async def predictive_maintenance(request: Dict[str, Any]):
+            return await self._proxy_request("advanced_ml", "POST", "/predictive_maintenance", request)
+        
+        @app.get("/api/v1/ml/models")
+        async def list_ml_models():
+            return await self._proxy_request("advanced_ml", "GET", "/models")
+        
+        # Security Service Routes
+        @app.post("/api/v1/auth/login")
+        async def login(request: Dict[str, Any]):
+            return await self._proxy_request("security", "POST", "/auth/login", request)
+        
+        @app.post("/api/v1/auth/register")
+        async def register(request: Dict[str, Any]):
+            return await self._proxy_request("security", "POST", "/auth/register", request)
+        
+        @app.post("/api/v1/auth/refresh")
+        async def refresh_token(request: Dict[str, Any], token: Optional[str] = Depends(security)):
+            return await self._proxy_request("security", "POST", "/auth/refresh", request, token)
+        
+        @app.get("/api/v1/auth/profile")
+        async def get_profile(token: Optional[str] = Depends(security)):
+            return await self._proxy_request("security", "GET", "/auth/profile", {}, token)
+        
+        @app.get("/api/v1/security/audit")
+        async def get_audit_logs(token: Optional[str] = Depends(security)):
+            return await self._proxy_request("security", "GET", "/audit", {}, token)
+        
+        # Monitoring Service Routes
+        @app.get("/api/v1/monitoring/metrics")
+        async def get_metrics():
+            return await self._proxy_request("monitoring", "GET", "/metrics")
+        
+        @app.get("/api/v1/monitoring/prometheus")
+        async def prometheus_metrics():
+            return await self._proxy_request("monitoring", "GET", "/prometheus")
+        
+        @app.get("/api/v1/monitoring/health")
+        async def system_health():
+            return await self._proxy_request("monitoring", "GET", "/health")
+        
+        @app.get("/api/v1/monitoring/alerts")
+        async def get_monitoring_alerts():
+            return await self._proxy_request("monitoring", "GET", "/alerts")
+        
+        @app.post("/api/v1/monitoring/alerts")
+        async def create_monitoring_alert(request: Dict[str, Any]):
+            return await self._proxy_request("monitoring", "POST", "/alerts", request)
+        
         # Notification Service Routes
         @app.post("/api/v1/notifications/send")
         async def send_notification(request: Dict[str, Any]):
@@ -338,7 +442,8 @@ class APIGateway:
         service_name: str, 
         method: str, 
         endpoint: str, 
-        data: Optional[Dict[str, Any]] = None
+        data: Optional[Dict[str, Any]] = None,
+        token: Optional[str] = None
     ) -> Dict[str, Any]:
         """Proxy request to microservice with load balancing and circuit breaker"""
         
@@ -378,6 +483,41 @@ class APIGateway:
         # Use circuit breaker
         return await self.circuit_breaker.call_service(service_name, make_request)
     
+    async def _proxy_websocket(self, service_name: str, endpoint: str, websocket):
+        """Proxy WebSocket connection to microservice"""
+        try:
+            # Get service instance
+            instance = await self._get_service_instances(service_name)
+            if not instance:
+                await websocket.close(code=1011, reason="Service unavailable")
+                return
+            
+            # Connect to backend WebSocket
+            url = f"ws://{instance['host']}:{instance['port']}{endpoint}"
+            
+            async with websockets.connect(url) as backend_ws:
+                await websocket.accept()
+                
+                async def forward_to_backend():
+                    async for message in websocket.iter_text():
+                        await backend_ws.send(message)
+                
+                async def forward_to_client():
+                    async for message in backend_ws:
+                        await websocket.send_text(message)
+                
+                # Run both directions concurrently
+                await asyncio.gather(
+                    forward_to_backend(),
+                    forward_to_client(),
+                    return_exceptions=True
+                )
+        
+        except Exception as e:
+            logger.error(f"WebSocket proxy error: {e}")
+            if not websocket.client_state.disconnected:
+                await websocket.close(code=1011, reason="Proxy error")
+
     async def _get_service_instances(self, service_name: str) -> Optional[Dict[str, Any]]:
         """Get available service instance using load balancer"""
         if self.load_balancer:

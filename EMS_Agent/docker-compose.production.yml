@@ -228,7 +228,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Prometheus for monitoring (optional)
+  # Prometheus for monitoring
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -245,7 +245,7 @@ services:
       - '--web.enable-lifecycle'
     restart: unless-stopped
 
-  # Grafana for visualization (optional)
+  # Grafana for visualization
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -254,227 +254,13 @@ services:
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-    restart: unless-stopped
-      - REDIS_PORT=6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          memory: 1G
-          cpus: '0.5'
-
-  # Analytics Service
-  analytics:
-    build:
-      context: .
-      dockerfile: services/analytics/Dockerfile
-    ports:
-      - "8002-8003:8002"
-    environment:
-      - ENVIRONMENT=production
-      - MONGODB_URI=${MONGODB_URI}
-      - MONGODB_DATABASE=${MONGODB_DATABASE}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./models:/app/models
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          memory: 2G
-          cpus: '1.0'
-
-  # Query Processor Service
-  query-processor:
-    build:
-      context: .
-      dockerfile: services/query_processor/Dockerfile
-    ports:
-      - "8004-8005:8003"
-    environment:
-      - ENVIRONMENT=production
-      - MONGODB_URI=${MONGODB_URI}
-      - MONGODB_DATABASE=${MONGODB_DATABASE}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-
-  # Notification Service
-  notification:
-    build:
-      context: .
-      dockerfile: services/notification/Dockerfile
-    ports:
-      - "8006:8004"
-    environment:
-      - ENVIRONMENT=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - SMTP_HOST=${SMTP_HOST}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USER=${SMTP_USER}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-    depends_on:
-      redis:
-        condition: service_healthy
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: '0.25'
-
-  # API Gateway
-  gateway:
-    build:
-      context: .
-      dockerfile: gateway/Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - ENVIRONMENT=production
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      - redis
-      - data-ingestion
-      - analytics
-      - query-processor
-      - notification
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: '0.5'
-
-  # Load Balancer (Nginx)
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/ssl:/etc/nginx/ssl
-      - ./logs/nginx:/var/log/nginx
-    depends_on:
-      - gateway
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # Monitoring and Observability
-  prometheus:
-    image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
-    volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    restart: unless-stopped
-
-  grafana:
-    image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
-    volumes:
-      - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana:/etc/grafana/provisioning
-    depends_on:
-      - prometheus
-    restart: unless-stopped
-
-  # Log aggregation
-  loki:
-    image: grafana/loki:latest
-    ports:
-      - "3100:3100"
-    volumes:
-      - ./monitoring/loki.yml:/etc/loki/local-config.yaml
-      - loki_data:/tmp/loki
-    command: -config.file=/etc/loki/local-config.yaml
-    restart: unless-stopped
-
-  promtail:
-    image: grafana/promtail:latest
-    volumes:
-      - ./logs:/var/log
-      - ./monitoring/promtail.yml:/etc/promtail/config.yml
-    command: -config.file=/etc/promtail/config.yml
-    depends_on:
-      - loki
     restart: unless-stopped
 
 volumes:
   redis_data:
+  mongodb_data:
   prometheus_data:
   grafana_data:
-  loki_data:
 
 networks:
   default:

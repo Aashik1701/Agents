@@ -1,0 +1,156 @@
+# Prometheus Configuration for EMS Agent
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'ems-production'
+    environment: 'production'
+
+# Load alerting rules
+rule_files:
+  - "alerts.yml"
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # EMS Services
+  - job_name: 'ems-api-gateway'
+    static_configs:
+      - targets: ['api-gateway:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
+
+  - job_name: 'ems-data-ingestion'
+    static_configs:
+      - targets: ['data-ingestion:8001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-analytics'
+    static_configs:
+      - targets: ['analytics:8002']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  - job_name: 'ems-query-processor'
+    static_configs:
+      - targets: ['query-processor:8003']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-notification'
+    static_configs:
+      - targets: ['notification:8004']
+    metrics_path: '/metrics'
+    scrape_interval: 60s
+
+  - job_name: 'ems-realtime-streaming'
+    static_configs:
+      - targets: ['realtime-streaming:8005']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'ems-advanced-ml'
+    static_configs:
+      - targets: ['advanced-ml:8006']
+    metrics_path: '/metrics'
+    scrape_interval: 120s
+
+  - job_name: 'ems-security'
+    static_configs:
+      - targets: ['security:8007']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  - job_name: 'ems-monitoring'
+    static_configs:
+      - targets: ['monitoring:8008']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Infrastructure monitoring
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+    scrape_interval: 30s
+
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+    scrape_interval: 30s
+
+  # Node exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # Docker metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['docker-exporter:9323']
+    scrape_interval: 30s
+
+  # Service discovery for dynamic scaling
+  - job_name: 'ems-services-discovery'
+    consul_sd_configs:
+      - server: 'consul:8500'
+        services: ['ems-service']
+    relabel_configs:
+      - source_labels: [__meta_consul_service]
+        target_label: service
+      - source_labels: [__meta_consul_node]
+        target_label: node
+
+# Recording rules for efficient queries
+recording_rules:
+  - name: ems_aggregation_rules
+    rules:
+      # Request rate
+      - record: ems:request_rate_5m
+        expr: rate(ems_http_requests_total[5m])
+      
+      # Error rate
+      - record: ems:error_rate_5m
+        expr: rate(ems_http_requests_total{status_code=~"5.."}[5m]) / rate(ems_http_requests_total[5m])
+      
+      # Response time percentiles
+      - record: ems:response_time_p95_5m
+        expr: histogram_quantile(0.95, rate(ems_http_request_duration_seconds_bucket[5m]))
+      
+      - record: ems:response_time_p99_5m
+        expr: histogram_quantile(0.99, rate(ems_http_request_duration_seconds_bucket[5m]))
+      
+      # Service availability
+      - record: ems:service_availability_5m
+        expr: up{job=~"ems-.*"}
+      
+      # Energy data processing rate
+      - record: ems:energy_readings_rate_5m
+        expr: rate(ems_energy_readings_total[5m])
+      
+      # Anomaly detection rate
+      - record: ems:anomalies_rate_5m
+        expr: rate(ems_anomalies_detected_total[5m])
+
+# Storage configuration
+storage:
+  retention_time: 30d
+  retention_size: 50GB

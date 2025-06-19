@@ -1,0 +1,141 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "EMS Agent - Energy Analytics",
+    "tags": [
+      "ems",
+      "energy",
+      "analytics"
+    ],
+    "style": "dark",
+    "timezone": "browser",
+    "refresh": "30s",
+    "time": {
+      "from": "now-24h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Total Energy Consumption",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(energy_consumption_total)",
+            "legendFormat": "Total kWh"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "kwatth",
+            "decimals": 2
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 0,
+          "y": 0
+        }
+      },
+      {
+        "id": 2,
+        "title": "Peak Demand",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "max_over_time(power_demand_watts[24h])",
+            "legendFormat": "Peak kW"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "kwatt",
+            "decimals": 2
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 8,
+          "y": 0
+        }
+      },
+      {
+        "id": 3,
+        "title": "Energy Efficiency Score",
+        "type": "gauge",
+        "targets": [
+          {
+            "expr": "energy_efficiency_score",
+            "legendFormat": "Efficiency %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent",
+            "thresholds": {
+              "steps": [
+                {
+                  "color": "red",
+                  "value": 0
+                },
+                {
+                  "color": "yellow",
+                  "value": 60
+                },
+                {
+                  "color": "green",
+                  "value": 80
+                }
+              ]
+            }
+          }
+        },
+        "gridPos": {
+          "h": 8,
+          "w": 8,
+          "x": 16,
+          "y": 0
+        }
+      },
+      {
+        "id": 4,
+        "title": "Power Consumption by Device",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "power_consumption_watts",
+            "legendFormat": "{{device_id}}"
+          }
+        ],
+        "gridPos": {
+          "h": 12,
+          "w": 12,
+          "x": 0,
+          "y": 8
+        }
+      },
+      {
+        "id": 5,
+        "title": "Energy Cost Analysis",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "energy_cost_total",
+            "legendFormat": "Cost",
+            "format": "table"
+          }
+        ],
+        "gridPos": {
+          "h": 12,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        }
+      }
+    ]
+  }
+}

@@ -10,12 +10,89 @@ import os
 import sys
 from typing import Dict, Any, Optional
 from datetime import datetime
+import requests
+import json
 
 # Add the current directory to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Check if running in microservices mode
 MICROSERVICES_MODE = os.getenv('MICROSERVICES_MODE', 'false').lower() == 'true'
+
+# Service URLs configuration
+SERVICE_URLS = {
+    'analytics': os.getenv('ANALYTICS_SERVICE_URL', 'http://localhost:8001'),
+    'advanced_ml': os.getenv('ADVANCED_ML_SERVICE_URL', 'http://localhost:8002'),
+    'monitoring': os.getenv('MONITORING_SERVICE_URL', 'http://localhost:8003'),
+    'data_ingestion': os.getenv('DATA_INGESTION_SERVICE_URL', 'http://localhost:8004'),
+}
+
+class ServiceIntegrator:
+    """Helper class to integrate with microservices"""
+    
+    def __init__(self):
+        self.available_services = self._check_service_availability()
+        
+    def _check_service_availability(self) -> Dict[str, bool]:
+        """Check which services are available"""
+        available = {}
+        for service_name, url in SERVICE_URLS.items():
+            try:
+                response = requests.get(f"{url}/health", timeout=2)
+                available[service_name] = response.status_code == 200
+            except:
+                available[service_name] = False
+        return available
+    
+    def get_analytics(self, query_type: str, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Get analytics from analytics service"""
+        if not self.available_services.get('analytics', False):
+            return None
+        
+        try:
+            response = requests.post(
+                f"{SERVICE_URLS['analytics']}/analyze",
+                json={'type': query_type, 'data': data},
+                timeout=10
+            )
+            return response.json() if response.status_code == 200 else None
+        except Exception as e:
+            logging.error(f"Analytics service error: {e}")
+            return None
+    
+    def get_ml_prediction(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Get ML predictions from advanced ML service"""
+        if not self.available_services.get('advanced_ml', False):
+            return None
+        
+        try:
+            response = requests.post(
+                f"{SERVICE_URLS['advanced_ml']}/predict",
+                json=data,
+                timeout=15
+            )
+            return response.json() if response.status_code == 200 else None
+        except Exception as e:
+            logging.error(f"ML service error: {e}")
+            return None
+    
+    def get_anomalies(self) -> Optional[Dict[str, Any]]:
+        """Get anomaly detection results"""
+        if not self.available_services.get('advanced_ml', False):
+            return None
+        
+        try:
+            response = requests.get(
+                f"{SERVICE_URLS['advanced_ml']}/anomalies",
+                timeout=10
+            )
+            return response.json() if response.status_code == 200 else None
+        except Exception as e:
+            logging.error(f"Anomaly detection service error: {e}")
+            return None
+
+# Global service integrator
+service_integrator = ServiceIntegrator()
 
 if MICROSERVICES_MODE:
     # Import microservices components
@@ -114,12 +191,26 @@ else:
             logger.info(f"Processing query: {user_query}")
             
             # Process the query using the EMS search engine
-            response = query_engine.process_query(user_query)
+            if query_engine:
+                response = query_engine.process_query(user_query)
+                
+                # Integrate with analytics and ML services for enhanced processing
+                analytics_result = service_integrator.get_analytics('query_analysis', {'query': user_query})
+                ml_prediction = service_integrator.get_ml_prediction({'query': user_query})
+                anomalies = service_integrator.get_anomalies()
+            else:
+                response = "EMS system not initialized. Please try again later."
+                analytics_result = None
+                ml_prediction = None
+                anomalies = None
             
             return jsonify({
                 'success': True,
                 'query': user_query,
                 'response': response,
+                'analytics': analytics_result,
+                'ml_prediction': ml_prediction,
+                'anomalies': anomalies,
                 'timestamp': datetime.now().isoformat()
             })
             
@@ -135,7 +226,10 @@ else:
         """Get system status and database statistics"""
         try:
             # Get database statistics
-            db_stats = query_engine.get_system_stats()
+            if query_engine:
+                db_stats = query_engine.get_system_stats()
+            else:
+                db_stats = {'error': 'Query engine not initialized'}
             
             return jsonify({
                 'status': 'online',
@@ -174,7 +268,13 @@ else:
             logger.info(f"Loading data from {excel_file_path}")
             
             # Load and process data
-            result = data_loader.load_and_process_all(excel_file_path)
+            if data_loader:
+                result = data_loader.load_and_process_all(excel_file_path)
+            else:
+                result = {
+                    'success': False,
+                    'error': 'Data loader not initialized'
+                }
             
             return jsonify(result)
             
@@ -189,7 +289,10 @@ else:
     def get_data_summary():
         """Get data summary and statistics"""
         try:
-            summary = query_engine.get_data_summary()
+            if query_engine:
+                summary = query_engine.get_data_summary()
+            else:
+                summary = {'error': 'Query engine not initialized'}
             
             return jsonify({
                 'success': True,

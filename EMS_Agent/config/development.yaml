@@ -1,16 +1,64 @@
-# Development Configuration
-mongodb:
-  uri: "mongodb+srv://aashik1701:Sustainabyte@cluster20526.g4udhpz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster20526"
-  database: "EMS_Database"
-  max_pool_size: 10
-  min_pool_size: 5
-  timeout: 5000
+# Enhanced Development Configuration
+database:
+  mongodb_uri: "mongodb+srv://aashik1701:Sustainabyte@cluster20526.g4udhpz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster20526"
+  database_name: "EMS_Database"
+  collection_name: "energy_data"
+  connection_timeout: 30
+  max_pool_size: 100
 
 redis:
-  host: "localhost"
-  port: 6379
-  db: 0
-  max_connections: 10
+  url: "redis://localhost:6379"
+  max_connections: 20
+  socket_timeout: 30
+
+security:
+  secret_key: "development-secret-key-change-in-production"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  refresh_token_expire_days: 7
+  password_min_length: 8
+  enable_2fa: false
+  rate_limit_requests_per_minute: 100
+
+streaming:
+  websocket_port: 8765
+  mqtt_broker: "localhost"
+  mqtt_port: 1883
+  buffer_size: 10000
+  max_message_size: 1048576  # 1MB
+  enable_compression: true
+
+monitoring:
+  prometheus_port: 9090
+  enable_tracing: true
+  log_level: "INFO"
+  metrics_retention_days: 30
+  alert_channels:
+    - type: "email"
+      config:
+        smtp_server: "localhost"
+        smtp_port: 587
+    - type: "webhook"
+      config:
+        url: "http://localhost:3000/alerts"
+
+ml:
+  model_update_interval: 3600  # seconds
+  enable_auto_retrain: true
+  anomaly_threshold: 0.8
+  feature_engineering:
+    enable_automated: true
+    lag_features: [1, 5, 15, 60]  # minutes
+    rolling_windows: [5, 15, 60]  # minutes
+  models:
+    ensemble:
+      enable: true
+      algorithms: ["xgboost", "lightgbm", "random_forest"]
+    deep_learning:
+      enable: true
+      architecture: "lstm"
+      epochs: 100
+      batch_size: 32
 
 # Service-specific configuration
 data_ingestion:
