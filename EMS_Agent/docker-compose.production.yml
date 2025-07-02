@@ -48,10 +48,69 @@ services:
       - SERVICE_TYPE=gateway
     depends_on:
       - redis
-      - mongodb
-    restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Query Processor Service
+  query-processor:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: query_processor
+    ports:
+      - "8003:8003"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=query_processor
+      - SERVICE_PORT=8003
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
+      - MONGODB_DATABASE=ems
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Notification Service
+  notification:
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: notification
+    ports:
+      - "8004:8004"
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=notification
+      - SERVICE_PORT=8004
+      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
+      - MONGODB_DATABASE=ems
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # Email configuration
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - EMAIL_USERNAME=${EMAIL_USERNAME}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      # Slack configuration
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+    depends_on:
+      - mongodb
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -61,13 +120,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+    ports:
+      - "8001:8001"
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=data_ingestion
+      - SERVICE_PORT=8001
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=data_ingestion
-      - SERVICE_PORT=8001
+      - REDIS_PORT=6379
     depends_on:
       - redis
       - mongodb
@@ -85,13 +147,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+    ports:
+      - "8002:8002"
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=analytics
+      - SERVICE_PORT=8002
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=analytics
-      - SERVICE_PORT=8002
+      - REDIS_PORT=6379
     depends_on:
       - redis
       - mongodb
@@ -109,13 +174,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+    ports:
+      - "8005:8005"
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=realtime_streaming
+      - SERVICE_PORT=8005
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=realtime_streaming
-      - SERVICE_PORT=8005
+      - REDIS_PORT=6379
     depends_on:
       - redis
       - mongodb
@@ -133,13 +201,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+    ports:
+      - "8006:8006"
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=advanced_ml
+      - SERVICE_PORT=8006
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=advanced_ml
-      - SERVICE_PORT=8006
+      - REDIS_PORT=6379
     depends_on:
       - redis
       - mongodb
@@ -157,13 +228,16 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.service
+    ports:
+      - "8007:8007"
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=security
+      - SERVICE_PORT=8007
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=security
-      - SERVICE_PORT=8007
+      - REDIS_PORT=6379
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-super-secret-jwt-key}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY:-your-32-char-encryption-key!!}
     depends_on:
@@ -187,11 +261,12 @@ services:
       - "8008:8008"  # Expose for Prometheus scraping
     environment:
       - ENVIRONMENT=production
+      - SERVICE_TYPE=monitoring
+      - SERVICE_PORT=8008
       - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
       - MONGODB_DATABASE=ems
       - REDIS_HOST=redis
-      - SERVICE_TYPE=monitoring
-      - SERVICE_PORT=8008
+      - REDIS_PORT=6379
     depends_on:
       - redis
       - mongodb
@@ -204,29 +279,7 @@ services:
       timeout: 10s
       retries: 3
 
-  # Query Processor Service
-  query-processor:
-    build:
-      context: .
-      dockerfile: Dockerfile.service
-    environment:
-      - ENVIRONMENT=production
-      - MONGODB_URI=mongodb://admin:password123@mongodb:27017/ems?authSource=admin
-      - MONGODB_DATABASE=ems
-      - REDIS_HOST=redis
-      - SERVICE_TYPE=query_processor
-      - SERVICE_PORT=8003
-    depends_on:
-      - redis
-      - mongodb
-    restart: unless-stopped
-    deploy:
-      replicas: 2
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+
 
   # Prometheus for monitoring
   prometheus:

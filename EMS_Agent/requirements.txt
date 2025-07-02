@@ -63,6 +63,21 @@ uvloop>=0.19.0
 # Monitoring and observability
 sentry-sdk>=1.38.0
 
+# LangChain and LLM Support
+langchain>=0.0.350
+langchain-openai>=0.0.3
+openai>=1.0.0
+transformers>=4.25.0
+torch>=2.0.0
+sentence-transformers>=2.2.0
+
+# Enhanced AI capabilities
+huggingface-hub>=0.17.0
+accelerate>=0.24.0
+
 # Optional: For advanced features
 # celery>=5.3.0  # For background tasks
 # flower>=2.0.0  # Celery monitoring
+
+# Email validation
+email-validator>=2.0.0

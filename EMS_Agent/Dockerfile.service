@@ -32,4 +32,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${SERVICE_PORT:-8000}/health || exit 1
 
 # Run the service based on SERVICE_TYPE environment variable
-CMD ["python", "-c", "import os; import sys; sys.path.insert(0, '/app'); os.environ.setdefault('MICROSERVICES_MODE', 'true'); exec(open('app.py').read())"]
+CMD ["python", "service_launcher.py"]

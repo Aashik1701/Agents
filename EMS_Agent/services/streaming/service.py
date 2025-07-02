@@ -769,3 +769,29 @@ async def streaming_demo():
     </body>
     </html>
     """
+
+
+# Factory function
+def create_streaming_service(config: Dict[str, Any] = None) -> StreamingService:
+    """Create and configure streaming service"""
+    from common.config_manager import ConfigManager
+    
+    if not config:
+        config_manager = ConfigManager('streaming')
+        config = config_manager.get_config()
+    
+    return StreamingService(config)
+
+if __name__ == "__main__":
+    import uvicorn
+    
+    # Create service
+    service = create_streaming_service()
+    
+    # Run the service
+    uvicorn.run(
+        service.app,
+        host="0.0.0.0", 
+        port=8005,
+        log_level="info"
+    )

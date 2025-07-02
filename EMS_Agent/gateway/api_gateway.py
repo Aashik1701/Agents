@@ -147,6 +147,21 @@ class APIGateway:
                 'default_port': 8008,
                 'health_endpoint': '/health',
                 'timeout': 10
+            },
+            'llm_integration': {
+                'default_port': 8009,
+                'health_endpoint': '/health',
+                'timeout': 30
+            },
+            'predictive_maintenance': {
+                'default_port': 8010,
+                'health_endpoint': '/health',
+                'timeout': 20
+            },
+            'efficiency_optimization': {
+                'default_port': 8011,
+                'health_endpoint': '/health',
+                'timeout': 20
             }
         }
     
